@@ -87,20 +87,33 @@
     $("#h-name").textContent = S.name.split(" ")[0];
     const box = $("#mods"); box.innerHTML = ""; let unlocked = true;
     C.modules.forEach(m => {
-      const scr = screensOf(m), p = S.progress[m.id], done = !!(p && p.completed), pct = p ? Math.round(100 * Math.min(p.max_screen, scr.length) / scr.length) : 0;
-      const b = document.createElement("button"); b.className = "mod" + (done ? " done" : "") + (unlocked ? "" : " locked");
-      b.innerHTML = `<div class="n">${done ? "✓" : m.id}</div><div class="b"><b>${esc(m.title)}</b><span>${esc(m.subtitle)}</span><div class="bar"><i style="width:${done ? 100 : pct}%"></i></div></div><div class="st">${done ? "Concluído" : (p ? pct + "%" : scr.length + " telas")}</div>`;
-      const canOpen = unlocked; b.onclick = () => canOpen ? openModule(m) : toast("Conclua o módulo anterior primeiro.");
+      const scr = screensOf(m), p = S.progress[m.id], done = !!(p && p.completed), redo = !!(p && !p.completed && p.max_screen === 0 && p.seconds > 0);
+      const pct = p ? Math.round(100 * Math.min(p.max_screen, scr.length) / scr.length) : 0, canOpen = done || unlocked;
+      const b = document.createElement("button"); b.className = "mod" + (done ? " done" : "") + (redo ? " redo" : "") + (canOpen ? "" : " locked");
+      b.innerHTML = `<div class="n">${done ? "✓" : m.id}</div><div class="b"><b>${esc(m.title)}</b><span>${esc(m.subtitle)}</span><div class="bar"><i style="width:${done ? 100 : pct}%"></i></div></div><div class="st">${done ? "Concluído" : redo ? "Refazer" : (p ? pct + "%" : scr.length + " telas")}</div>`;
+      b.onclick = () => canOpen ? openModule(m) : toast("Conclua o módulo anterior primeiro.");
       box.appendChild(b); if (!done) unlocked = false;
     });
     const allDone = C.modules.every(m => S.progress[m.id] && S.progress[m.id].completed);
-    const { data: att } = await sb.from("attempts").select("finished_at,score,total,passed").eq("driver_id", S.user.id).not("finished_at", "is", null).order("finished_at", { ascending: false });
+    const { data: att } = await sb.from("attempts").select("id,finished_at,score,total,passed,detail,reset_modules").eq("driver_id", S.user.id).not("finished_at", "is", null).order("finished_at", { ascending: false });
     const best = (att || []).find(a => a.passed), last = (att || [])[0]; const q = $("#quizcard");
+    const modNames = ids => (ids || []).map(id => { const m = C.modules.find(x => x.id === id); return m ? m.id + ". " + m.title : id; }).join(", ");
     if (best) q.innerHTML = `<b>Prova concluída</b><p>Aprovado com ${best.score} de ${best.total} em ${new Date(best.finished_at).toLocaleDateString("pt-BR")}.</p><span class="pill ok">APROVADO</span>`;
     else if (allDone) q.innerHTML = `<b>Prova de conhecimento</b><p>Todos os módulos concluídos. ${last ? "Última tentativa: " + last.score + "/" + last.total + ". " : ""}São 15 questões, aprovação com 80%.</p><button class="btn sm" id="b-quiz">Fazer a prova</button>`;
+    else if (last) q.innerHTML = `<b>Prova de conhecimento</b><p>Você fez ${last.score} de ${last.total} na última prova. Assista de novo: ${esc(modNames(last.reset_modules))}. Depois, faça uma nova prova completa.</p><span class="pill no">REFAZER MÓDULOS</span>`;
     else q.innerHTML = `<b>Prova de conhecimento</b><p>Libera quando os cinco módulos estiverem concluídos.</p><span class="pill">BLOQUEADA</span>`;
     const bq = $("#b-quiz"); if (bq) bq.onclick = () => { show("v-quiz"); $("#quiz-intro").classList.remove("hidden"); $("#quiz-body").classList.add("hidden"); $("#quiz-result").classList.add("hidden"); };
+    renderHistory(att || []);
     show("v-home");
+  }
+
+  // ---------- histórico de provas (perfil do motorista) ----------
+  const modOf = id => { const m = C.modules.find(x => x.id === id); return m ? "Módulo " + m.id + " · " + m.title : ""; };
+  const reviewHtml = (detail) => (detail || []).map(d => `<div class="ri ${d.ok ? "ok" : "no"}"><div class="mk">${d.ok ? "✓" : "✗"}</div><div><div class="qq">${d.n}. ${esc(d.q)}</div><div class="aa">${d.ok ? "Acertou" : "Errou"} · sua resposta: ${esc(d.a ?? "(em branco)")}</div>${d.ok ? "" : `<div class="ee" style="color:var(--muted)">${esc(modOf(d.m))}</div>`}</div></div>`).join("");
+  function renderHistory(att) {
+    const h = $("#history"); if (!att.length) { h.innerHTML = ""; return; }
+    h.innerHTML = `<div class="hist"><h2>Suas provas</h2>` + att.map((a, i) => `<div class="att"><button class="hd" data-i="${i}"><b>${a.score}/${a.total}</b><span class="d">${new Date(a.finished_at).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}</span>${a.passed ? '<span class="pill ok">Aprovado</span>' : '<span class="pill no">Reprovado</span>'}<span class="ar">ver ▾</span></button><div class="rev hidden">${reviewHtml(a.detail) || '<div class="aa">Sem detalhe por questão.</div>'}</div></div>`).join("") + `</div>`;
+    h.querySelectorAll(".hd").forEach(b => b.onclick = () => { const r = b.nextElementSibling; r.classList.toggle("hidden"); b.querySelector(".ar").textContent = r.classList.contains("hidden") ? "ver ▾" : "fechar ▴"; });
   }
 
   // ---------- leitura ----------
@@ -159,12 +172,14 @@
     const { data, error } = await sb.rpc("submit_attempt", { p_answers: S.answers });
     if (error) { $("#b-send").disabled = false; return $("#quiz-status").textContent = "Não foi possível enviar. Tente de novo."; }
     const r = data[0], pct = Math.round(100 * r.score / r.total), res = $("#quiz-result");
+    const redo = (r.reset_modules || []).map(id => { const m = C.modules.find(x => x.id === id); return m ? `<li>${m.id}. ${esc(m.title)}</li>` : ""; }).join("");
     res.innerHTML = `<div class="result"><div class="score ${r.passed ? "" : "no"}">${r.score}<span style="font-size:28px;color:var(--muted)">/${r.total}</span></div><h2>${r.passed ? "Aprovado!" : "Ainda não foi desta vez"}</h2><p class="muted">${pct}% de acertos · mínimo ${C.passPercent}%</p></div>`
       + (r.passed ? `<div class="cert"><div class="k">Grupo Vega · Treinamento de motoristas</div><h3>${esc(S.name)}</h3><p>concluiu os cinco módulos e foi aprovado na prova de conhecimento</p><p><b>${r.score} de ${r.total}</b> · ${new Date().toLocaleDateString("pt-BR")}</p></div>`
-                 : `<p class="muted">Questões erradas: ${r.wrong.map(id => S.quiz.findIndex(q => q.id === id) + 1).join(", ")}. Revise os módulos e tente de novo.</p>`)
-      + `<button class="btn ghost" id="b-back">Voltar aos módulos</button>` + (r.passed ? "" : `<button class="btn" id="b-again">Tentar de novo</button>`);
+                 : `<div class="quizcard"><b>Assista de novo os módulos em que houve erro</b><ul style="margin:0 0 10px 18px;padding:0;color:var(--goldl)">${redo}</ul><p>Eles voltaram ao zero. Depois de concluí-los, faça uma nova prova completa.</p></div>`)
+      + `<div class="hist"><h2>Sua prova, questão por questão</h2><div class="sumline"><span class="pill ok">${r.score} certas</span><span class="pill no">${r.total - r.score} erradas</span></div><div class="att"><div class="rev" style="border:0;padding:0;margin:0">${reviewHtml(r.detail)}</div></div></div>`
+      + `<button class="btn" id="b-back">Voltar aos módulos</button>`;
     $("#quiz-body").classList.add("hidden"); res.classList.remove("hidden"); window.scrollTo(0, 0);
-    $("#b-back").onclick = home; const ag = $("#b-again"); if (ag) ag.onclick = () => { res.classList.add("hidden"); startQuiz(); };
+    $("#b-back").onclick = home;
   }
 
   // ---------- util / eventos ----------
