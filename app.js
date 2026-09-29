@@ -143,7 +143,7 @@
     S.quiz = data; S.answers = {}; const b = $("#quiz-body"); b.innerHTML = "";
     data.forEach((q, i) => {
       const d = document.createElement("div"); d.className = "q"; d.id = "q" + q.id;
-      d.innerHTML = `<div class="qn">Questão ${i + 1} de ${data.length}</div><div class="qt">${esc(q.text)}</div>` + q.options.map((o, j) => `<button class="opt" data-q="${q.id}" data-k="${o.k}"><span class="l">${"ABCDE"[j]}</span><span>${esc(o.text)}</span></button>`).join("");
+      d.innerHTML = `<div class="qn">Questão ${i + 1} de ${data.length}</div><div class="qt">${esc(q.text)}</div>` + q.options.map((o, j) => `<button class="opt" data-q="${q.id}" data-k="${o.k}"><span class="l">${"ABCD"[j]}</span><span>${esc(o.text)}</span></button>`).join("");
       b.appendChild(d);
     });
     const send = document.createElement("button"); send.className = "btn"; send.id = "b-send"; send.textContent = "Entregar prova"; send.disabled = true; b.appendChild(send);
