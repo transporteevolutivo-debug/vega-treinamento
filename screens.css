@@ -30,12 +30,12 @@ ul{margin:0 0 1.5mm;padding-left:4.2mm}li{margin:0 0 .9mm;color:#D8D2C4;padding-
 .bh.top{align-items:flex-start}.bh.top p{margin:0;font-family:"Nunito Sans",Arial,sans-serif;font-weight:400;font-size:inherit;color:#F0D68C}
 .quote{font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:56pt;line-height:.6;color:#E2B646;margin:2mm 0 4mm}
 .img{text-align:center;margin:1.5mm 0 2.4mm}.img img{max-width:100%;max-height:78mm;border-radius:2mm}
-.imggrid{display:grid;grid-template-columns:1fr 1fr;gap:2.4mm;margin:1.5mm 0 2mm}.imggrid img{width:100%;border-radius:2mm;max-height:70mm;object-fit:contain}
+.imggrid{display:grid;grid-template-columns:1fr 1fr;gap:2.4mm;margin:1.5mm 0 2mm}.imggrid img{width:100%;border-radius:2mm;max-height:74mm;object-fit:contain}
 footer{position:absolute;left:7mm;right:7mm;bottom:5mm;display:flex;justify-content:space-between;font-size:7.6pt;color:#8F897B;letter-spacing:.06em}
 /* compact mode: tighter spacing before any font shrink */
 .compact .card{padding:2.2mm 3mm 1.4mm;margin-bottom:1.8mm}.compact .grid2{gap:1.8mm;margin-bottom:1.8mm}.compact p{margin-bottom:1.1mm}.compact li{margin-bottom:.5mm}
 .compact header{margin-bottom:1.6mm}.compact .callout{padding:2mm 3mm;margin-bottom:1.8mm}.compact .k{margin-bottom:.8mm}.compact .bh{margin-bottom:.8mm}.compact .row{padding:.9mm 0}
-.compact .imggrid{gap:1.8mm}.compact .imggrid img{max-height:60mm;object-fit:cover}
+.compact .imggrid{gap:1.8mm}.compact .imggrid img{max-height:64mm;object-fit:contain}
 /* cover / thanks */
 .cover,.thanks{display:flex;flex-direction:column;justify-content:center;padding:14mm 9mm}
 .cover .kicker{margin-bottom:3mm}.cover h1{font-size:27pt;font-weight:800;line-height:1.08}.cover .rule{width:14mm;height:1.1mm;background:#E2B646;margin:4mm 0}.cover .sub{color:#B9B3A5;font-size:11.5pt;margin:0 0 8mm}
