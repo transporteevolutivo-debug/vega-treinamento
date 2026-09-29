@@ -7,14 +7,15 @@
   const views = ["v-login", "v-home", "v-module", "v-quiz"];
   const show = (id) => { views.forEach(v => $("#" + v).classList.toggle("hidden", v !== id)); window.scrollTo(0, 0); };
   const loading = (on) => $("#loading").classList.toggle("hidden", !on);
-  const S = { user: null, name: "", progress: {}, screens: [], mod: null, idx: 0, tick: null, enteredAt: 0, quiz: null, answers: {} };
+  const S = { user: null, name: "", progress: {}, screens: [], slides: {}, mod: null, idx: 0, tick: null, enteredAt: 0, quiz: null, answers: {} };
+  const isDesk = () => window.innerWidth >= 900 && window.innerHeight >= 500;   // computador: slide 16:9; celular: tela vertical
   const emailOf = (phone) => `${phone}@motoristas.vega`;
   const digits = (v) => (v || "").replace(/\D/g, "");
 
   // ---------- conteúdo protegido (telas do deck) ----------
   async function loadScreens() {
     if (S.screens.length) return true;
-    const { data, error } = await sb.from("content").select("name,mime,data");
+    const { data, error } = await sb.from("content").select("name,mime,data").not("name", "like", "slide/%");
     if (error || !data || !data.length) return false;
     const rows = Object.fromEntries(data.map(r => [r.name, r]));
     if (!document.getElementById("screens-css")) { const st = document.createElement("style"); st.id = "screens-css"; st.textContent = rows["screens.css"].data; document.head.appendChild(st); }
@@ -124,12 +125,25 @@
     show("v-module"); render();
   }
   function fitStage() {
-    const st = $("#stage"); const vw = Math.min(window.innerWidth - 16, 520), vh = window.innerHeight - 160;
-    const W = st.offsetWidth || 408, H = st.offsetHeight || 726; const k = Math.min(vw / W, vh / H, 1.15);
+    const st = $("#stage"), desk = st.classList.contains("desk");
+    const vw = desk ? Math.min(window.innerWidth - 48, 1400) : Math.min(window.innerWidth - 16, 520), vh = window.innerHeight - 150;
+    const W = desk ? 1600 : (st.offsetWidth || 408), H = desk ? 900 : (st.offsetHeight || 726); const k = Math.min(vw / W, vh / H, desk ? 1 : 1.15);
     st.style.transform = `scale(${k})`; st.parentElement.style.height = (H * k + 20) + "px";
   }
+  // imagem 16:9 do slide (carregada sob demanda e guardada na sessão)
+  async function slideImg(no) {
+    const key = "slide/" + String(no).padStart(2, "0") + ".jpg";
+    if (!S.slides[key]) S.slides[key] = sb.from("content").select("mime,data").eq("name", key).maybeSingle().then(({ data }) => data ? `data:${data.mime};base64,${data.data}` : null).catch(() => null);
+    return S.slides[key];
+  }
   function render() {
-    const scr = screensOf(S.mod), cur = scr[S.idx]; const st = $("#stage"); st.innerHTML = ""; st.appendChild(cur.el.cloneNode(true));
+    const scr = screensOf(S.mod), cur = scr[S.idx]; const st = $("#stage"); st.innerHTML = ""; st.classList.toggle("desk", isDesk());
+    if (st.classList.contains("desk")) {
+      const img = document.createElement("img"); img.alt = "Slide " + cur.slide; const ph = document.createElement("div"); ph.className = "ph"; ph.textContent = "Carregando…"; st.appendChild(ph);
+      const want = S.idx;
+      slideImg(cur.slide).then(src => { if (S.idx !== want || !st.classList.contains("desk")) return; if (src) { img.src = src; st.innerHTML = ""; st.appendChild(img); } else { st.classList.remove("desk"); st.innerHTML = ""; st.appendChild(cur.el.cloneNode(true)); fitStage(); } });
+      if (scr[S.idx + 1]) slideImg(scr[S.idx + 1].slide);
+    } else st.appendChild(cur.el.cloneNode(true));
     $("#p-cur").textContent = S.idx + 1; $("#b-prev").disabled = S.idx === 0;
     const last = S.idx === scr.length - 1; $("#b-next").textContent = last ? "Concluir módulo" : "Próxima";
     fitStage(); window.scrollTo(0, 0);
@@ -188,7 +202,8 @@
   $("#f-login").onsubmit = login; $("#f-reg").onsubmit = register;
   $("#b-logout").onclick = logout; $("#b-home").onclick = () => { clearInterval(S.tick); logAndMove(0); }; $("#b-home2").onclick = home;
   $("#b-prev").onclick = () => logAndMove(-1); $("#b-next").onclick = () => logAndMove(1); $("#b-start-quiz").onclick = startQuiz;
-  window.addEventListener("resize", () => { if (!$("#v-module").classList.contains("hidden")) fitStage(); });
+  window.addEventListener("resize", () => { if ($("#v-module").classList.contains("hidden")) return; if ($("#stage").classList.contains("desk") !== isDesk()) render(); else fitStage(); });
+  document.addEventListener("keydown", e => { if ($("#v-module").classList.contains("hidden") || e.target.tagName === "INPUT") return; if (e.key === "ArrowRight" && !$("#b-next").disabled) logAndMove(1); else if (e.key === "ArrowLeft" && !$("#b-prev").disabled) logAndMove(-1); });
 
   (async () => { const { data: { session } } = await sb.auth.getSession(); if (session) await enter(); else { loading(false); show("v-login"); } })();
 })();
