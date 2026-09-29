@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0B0B0C">
+<meta name="robots" content="noindex">
+<title>Treinamento Grupo Vega</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Nunito+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js" integrity="sha384-WgXwGL6fUsYJWNaKJgVbrJKGRQwc1vieh2oy4kw9nXqpNDz3tdSsqEYUgeHD/NuF" crossorigin="anonymous"></script>
+<script src="config.js"></script>
+</head>
+<body>
+
+<!-- Entrada: login ou primeiro acesso -->
+<section id="v-login" class="view">
+  <div class="wrap">
+    <div class="logo-big"><img id="logo-login" alt="Vega" src="logo.png"></div>
+    <div class="kick" style="text-align:center">Grupo Vega · Motoristas parceiros</div>
+    <h1 class="big" style="text-align:center">Treinamento de Motoristas</h1>
+    <div class="tabs"><button class="tab on" data-tab="login">Já tenho cadastro</button><button class="tab" data-tab="reg">Primeiro acesso</button></div>
+
+    <form id="f-login" autocomplete="on">
+      <label for="l-phone">Celular (com DDD)</label>
+      <input id="l-phone" inputmode="tel" autocomplete="username" placeholder="31 9 9999-9999">
+      <label for="l-pass">Senha</label>
+      <input id="l-pass" type="password" autocomplete="current-password" placeholder="Sua senha">
+      <button class="btn" type="submit" id="b-login">Entrar</button>
+      <div class="err" id="login-err"></div>
+    </form>
+
+    <form id="f-reg" class="hidden" autocomplete="on">
+      <p class="muted" style="margin-top:14px">Cadastre-se uma única vez. Nas próximas, entre com o celular e a senha.</p>
+      <label for="r-name">Nome e sobrenome</label>
+      <input id="r-name" autocomplete="name" placeholder="Ex.: Daniel Crisostomo">
+      <label for="r-phone">Celular (com DDD)</label>
+      <input id="r-phone" inputmode="tel" autocomplete="tel" placeholder="31 9 9999-9999">
+      <label for="r-pass">Crie uma senha (mínimo 6 caracteres)</label>
+      <input id="r-pass" type="password" autocomplete="new-password">
+      <label for="r-pass2">Confirme a senha</label>
+      <input id="r-pass2" type="password" autocomplete="new-password">
+      <button class="btn" type="submit" id="b-reg">Cadastrar e entrar</button>
+      <div class="err" id="reg-err"></div>
+    </form>
+  </div>
+</section>
+
+<!-- Início: módulos -->
+<section id="v-home" class="view hidden">
+  <div class="topbar"><img id="logo-top" alt="" src="logo.png"><span class="t">TREINAMENTO VEGA</span><span class="sp"></span><button id="b-logout">Sair</button></div>
+  <div class="wrap">
+    <div class="kick">Olá, <span id="h-name"></span></div>
+    <h1 class="big">Seus módulos</h1>
+    <p class="muted">Conclua os cinco módulos, na ordem, para liberar a prova.</p>
+    <div class="mods" id="mods"></div>
+    <div class="quizcard" id="quizcard"></div>
+  </div>
+</section>
+
+<!-- Leitura do módulo -->
+<section id="v-module" class="view hidden">
+  <div class="topbar"><img id="logo-mod" alt="" src="logo.png"><span class="t" id="m-title"></span><span class="sp"></span><button id="b-home">Módulos</button></div>
+  <div class="viewer"><div class="stage" id="stage"></div></div>
+  <div class="nav">
+    <div class="timer" id="timer"></div>
+    <button class="prev" id="b-prev">Anterior</button>
+    <div class="prog"><b id="p-cur">1</b> / <span id="p-tot">1</span></div>
+    <button id="b-next">Próxima</button>
+  </div>
+</section>
+
+<!-- Prova -->
+<section id="v-quiz" class="view hidden">
+  <div class="topbar"><img id="logo-quiz" alt="" src="logo.png"><span class="t">PROVA DE CONHECIMENTO</span><span class="sp"></span><button id="b-home2">Módulos</button></div>
+  <div class="wrap">
+    <div id="quiz-intro">
+      <div class="kick">15 questões · 5 alternativas</div>
+      <h1 class="big">Prova de conhecimento</h1>
+      <p class="muted">Aprovação com 80% de acertos (12 de 15). Você pode consultar os módulos antes. Se não passar, pode tentar de novo.</p>
+      <button class="btn" id="b-start-quiz">Começar a prova</button>
+      <div class="err" id="quiz-err"></div>
+    </div>
+    <div id="quiz-body" class="hidden"></div>
+    <div id="quiz-result" class="hidden"></div>
+  </div>
+</section>
+
+<div id="loading" class="loading"><div class="spin"></div><div>Carregando o treinamento…</div></div>
+<div id="measure" class="measure"></div>
+<script src="app.js"></script>
+</body>
+</html>

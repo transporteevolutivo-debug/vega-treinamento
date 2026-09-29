@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Painel · Treinamento Vega</title>
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Nunito+Sans:wght@400;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="app.css">
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js" integrity="sha384-WgXwGL6fUsYJWNaKJgVbrJKGRQwc1vieh2oy4kw9nXqpNDz3tdSsqEYUgeHD/NuF" crossorigin="anonymous"></script>
+<script src="config.js"></script>
+<style>
+.wrap.wide{max-width:1100px}
+table{width:100%;border-collapse:collapse;font-size:14px;margin-top:14px}
+th,td{padding:10px 10px;border-bottom:1px solid #26262b;text-align:left;vertical-align:top}
+th{font-family:Montserrat,Arial,sans-serif;font-size:11px;letter-spacing:.12em;text-transform:uppercase;color:var(--gold);white-space:nowrap}
+tr.row{cursor:pointer}tr.row:hover td{background:#141416}
+.kpis{display:grid;grid-template-columns:repeat(auto-fit,minmax(150px,1fr));gap:10px;margin:10px 0 6px}
+.kpi{background:var(--card);border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.kpi b{font-family:Montserrat,Arial,sans-serif;font-size:26px;color:var(--gold);display:block;line-height:1.1}
+.kpi span{color:var(--muted);font-size:12px}
+.tools{display:flex;gap:10px;align-items:center;margin-top:12px;flex-wrap:wrap}
+.tools input{max-width:280px}
+.detail{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:16px;margin-top:16px}
+.detail h3{font-family:Montserrat,Arial,sans-serif;margin:0 0 4px}
+.mini{font-size:13px;color:var(--muted)}
+.bar{height:6px;background:#26262b;border-radius:3px;overflow:hidden;min-width:80px}.bar i{display:block;height:100%;background:var(--gold)}
+@media (max-width:700px){ .hide-sm{display:none} }
+</style>
+</head>
+<body>
+<section id="v-login" class="view">
+  <div class="wrap">
+    <div class="kick" style="margin-top:40px">Grupo Vega · Administração</div>
+    <h1 class="big">Painel do treinamento</h1>
+    <p class="muted">Acesso restrito aos administradores.</p>
+    <label>E-mail</label><input id="f-email" type="email" autocomplete="username">
+    <label>Senha</label><input id="f-pass" type="password" autocomplete="current-password">
+    <button class="btn" id="b-login">Entrar</button>
+    <div class="err" id="err"></div>
+  </div>
+</section>
+
+<section id="v-panel" class="view hidden">
+  <div class="topbar"><span class="t">PAINEL · TREINAMENTO VEGA</span><span class="sp"></span><button id="b-refresh">Atualizar</button><button id="b-logout">Sair</button></div>
+  <div class="wrap wide">
+    <div class="kpis" id="kpis"></div>
+    <div class="tools"><input id="f-search" placeholder="Buscar por nome ou telefone"><button class="btn sm ghost" id="b-csv">Exportar CSV</button><span class="mini" id="count"></span></div>
+    <div style="overflow-x:auto"><table id="tbl"><thead><tr>
+      <th>Motorista</th><th class="hide-sm">Telefone</th><th>Módulos</th><th class="hide-sm">Tempo</th><th>Tentativas</th><th>Melhor nota</th><th>Situação</th><th class="hide-sm">Último acesso</th>
+    </tr></thead><tbody></tbody></table></div>
+    <div id="detail" class="detail hidden"></div>
+    <div class="detail" style="margin-top:22px"><h3>Administradores</h3><div class="mini">Para adicionar: crie o usuário em Authentication › Users no Supabase e informe o e-mail aqui.</div>
+      <div class="tools"><input id="f-admin" type="email" placeholder="email@exemplo.com"><button class="btn sm ghost" id="b-admin">Adicionar</button><span class="mini" id="admin-msg"></span></div>
+      <div id="admins" class="mini" style="margin-top:8px"></div></div>
+  </div>
+</section>
+<script>
+(() => {
+  const C = window.VEGA_CONFIG, sb = supabase.createClient(C.supabaseUrl, C.supabaseKey), $ = s => document.querySelector(s);
+  let rows = [];
+  const esc = v => String(v ?? "").replace(/[&<>"']/g, c => ({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+  const fmtT = s => s < 3600 ? Math.round(s / 60) + " min" : (s / 3600).toFixed(1) + " h";
+  const fmtD = d => d ? new Date(d).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" }) : "";
+  const fmtPhone = p => p.length === 11 ? `(${p.slice(0,2)}) ${p.slice(2,7)}-${p.slice(7)}` : `(${p.slice(0,2)}) ${p.slice(2,6)}-${p.slice(6)}`;
+  const status = r => r.passed ? '<span class="pill ok">Aprovado</span>' : r.attempts > 0 ? '<span class="pill no">Reprovado</span>' : r.modules_done == r.modules_total ? '<span class="pill">Pronto p/ prova</span>' : r.modules_done > 0 ? '<span class="pill">Em andamento</span>' : '<span class="pill">Não iniciou</span>';
+
+  async function login() {
+    $("#err").textContent = ""; const { error } = await sb.auth.signInWithPassword({ email: $("#f-email").value.trim(), password: $("#f-pass").value });
+    if (error) return $("#err").textContent = "E-mail ou senha inválidos."; load();
+  }
+  async function load() {
+    const { data, error } = await sb.from("v_admin_drivers").select("*").order("last_seen_at", { ascending: false });
+    if (error) { $("#err").textContent = "Sem permissão. Faça login como administrador."; return; }
+    const { data: me } = await sb.rpc("is_admin"); if (!me) { await sb.auth.signOut(); $("#err").textContent = "Este usuário não é administrador."; return; }
+    rows = data || []; $("#v-login").classList.add("hidden"); $("#v-panel").classList.remove("hidden"); renderKpis(); renderTable(); loadAdmins();
+  }
+  function renderKpis() {
+    const n = rows.length, done = rows.filter(r => r.modules_done == r.modules_total).length, ok = rows.filter(r => r.passed).length, tried = rows.filter(r => r.attempts > 0).length;
+    $("#kpis").innerHTML = [[n, "motoristas cadastrados"], [done, "concluíram os 5 módulos"], [tried, "fizeram a prova"], [ok, "aprovados"], [n ? Math.round(100 * ok / n) + "%" : "0%", "taxa de aprovação"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
+  }
+  function renderTable() {
+    const q = ($("#f-search").value || "").toLowerCase(); const tb = $("#tbl tbody"); tb.innerHTML = "";
+    const list = rows.filter(r => !q || r.name.toLowerCase().includes(q) || r.phone.includes(q.replace(/\D/g, "")));
+    $("#count").textContent = list.length + " de " + rows.length;
+    list.forEach(r => { const tr = document.createElement("tr"); tr.className = "row"; tr.innerHTML = `<td><b>${esc(r.name)}</b></td><td class="hide-sm">${fmtPhone(r.phone)}</td><td>${r.modules_done}/${r.modules_total}<div class="bar"><i style="width:${100 * r.modules_done / r.modules_total}%"></i></div></td><td class="hide-sm">${fmtT(r.seconds_total)}</td><td>${r.attempts}</td><td>${r.best_score != null ? r.best_score + "/15" : "–"}</td><td>${status(r)}</td><td class="hide-sm">${fmtD(r.last_seen_at)}</td>`; tr.onclick = () => detail(r); tb.appendChild(tr); });
+  }
+  async function detail(r) {
+    const [{ data: mp }, { data: at }] = await Promise.all([sb.from("module_progress").select("*").eq("driver_id", r.id).order("module_id"), sb.from("attempts").select("*").eq("driver_id", r.id).order("started_at", { ascending: false })]);
+    const mods = C.modules.map(m => { const p = (mp || []).find(x => x.module_id === m.id); return `<tr><td>${m.id}. ${m.title}</td><td>${p ? (p.completed_at ? "Concluído" : "Tela " + p.max_screen) : "Não iniciado"}</td><td>${p ? fmtT(p.seconds) : "–"}</td><td>${p ? fmtD(p.completed_at || p.updated_at) : ""}</td></tr>`; }).join("");
+    const atts = (at || []).length ? (at || []).map(a => `<tr><td>${fmtD(a.finished_at)}</td><td>${a.score}/${a.total}</td><td>${a.passed ? '<span class="pill ok">Aprovado</span>' : '<span class="pill no">Reprovado</span>'}</td></tr>`).join("") : `<tr><td colspan="3" class="mini">Nenhuma tentativa.</td></tr>`;
+    $("#detail").innerHTML = `<h3>${esc(r.name)}</h3><div class="mini">${fmtPhone(r.phone)} · cadastrado em ${fmtD(r.created_at)}</div>
+      <table><thead><tr><th>Módulo</th><th>Status</th><th>Tempo</th><th>Data</th></tr></thead><tbody>${mods}</tbody></table>
+      <table><thead><tr><th>Prova</th><th>Nota</th><th>Resultado</th></tr></thead><tbody>${atts}</tbody></table>`;
+    $("#detail").classList.remove("hidden"); $("#detail").scrollIntoView({ behavior: "smooth" });
+  }
+  async function loadAdmins() { const { data } = await sb.from("admins").select("email,created_at").order("created_at"); $("#admins").innerHTML = (data || []).map(a => `• ${esc(a.email)}`).join("<br>") || "Nenhum administrador cadastrado."; }
+  async function addAdmin() { const email = $("#f-admin").value.trim(); $("#admin-msg").textContent = ""; if (!email) return; const { error } = await sb.rpc("add_admin", { p_email: email }); $("#admin-msg").textContent = error ? (error.message || "Erro") : "Adicionado."; if (!error) { $("#f-admin").value = ""; loadAdmins(); } }
+  function csv() {
+    const h = ["nome", "telefone", "modulos_concluidos", "tempo_minutos", "tentativas", "melhor_nota", "aprovado", "aprovado_em", "cadastro", "ultimo_acesso"];
+    const lines = [h.join(";")].concat(rows.map(r => [r.name, r.phone, r.modules_done + "/" + r.modules_total, Math.round(r.seconds_total / 60), r.attempts, r.best_score ?? "", r.passed ? "sim" : "não", fmtD(r.passed_at), fmtD(r.created_at), fmtD(r.last_seen_at)].map(v => `"${String(v).replace(/"/g, '""')}"`).join(";")));
+    const a = document.createElement("a"); a.href = URL.createObjectURL(new Blob(["﻿" + lines.join("\n")], { type: "text/csv;charset=utf-8" })); a.download = "treinamento-vega.csv"; a.click();
+  }
+  $("#b-login").onclick = login; $("#f-pass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
+  $("#b-logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
+  $("#b-refresh").onclick = load; $("#b-csv").onclick = csv; $("#b-admin").onclick = addAdmin; $("#f-search").oninput = renderTable;
+  sb.auth.getSession().then(({ data }) => { if (data.session) load(); });
+})();
+</script>
+</body>
+</html>
