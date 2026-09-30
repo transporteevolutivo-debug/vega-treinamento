@@ -188,7 +188,8 @@
     const p = S.progress[S.mod.id] || (S.progress[S.mod.id] = { module_id: S.mod.id, last_screen: 0, max_screen: 0, seconds: 0, completed: false });
     p.max_screen = Math.max(p.max_screen, S.idx + 1); p.seconds += secs;
     if (!completing) {
-      sb.rpc("log_progress", args).then(({ error }) => { if (error) { S.pending = (S.pending || []).concat([args]); toast("Sem conexão: o progresso será salvo na próxima tela."); } });
+      const req = sb.rpc("log_progress", args).then(({ error }) => { if (error) { S.pending = (S.pending || []).concat([args]); toast("Sem conexão: o progresso será salvo na próxima tela."); } });
+      if (delta === 0) { await req; return home(); }   // botão "Módulos": grava antes de mostrar a lista
       S.idx = screenNo; return render();
     }
     // concluir: grava antes de voltar (com nova tentativa), para a lista já mostrar "Concluído"
