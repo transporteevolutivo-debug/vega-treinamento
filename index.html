@@ -7,9 +7,9 @@
 <meta name="robots" content="noindex">
 <title>Treinamento Grupo Vega</title>
 <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@700;800&family=Nunito+Sans:ital,wght@0,400;0,700;1,400&display=swap" rel="stylesheet">
-<link rel="stylesheet" href="app.css?v=202609301357">
+<link rel="stylesheet" href="app.css?v=202609301522">
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2.117.2/dist/umd/supabase.min.js" integrity="sha384-WgXwGL6fUsYJWNaKJgVbrJKGRQwc1vieh2oy4kw9nXqpNDz3tdSsqEYUgeHD/NuF" crossorigin="anonymous"></script>
-<script src="config.js?v=202609301357"></script>
+<script src="config.js?v=202609301522"></script>
 </head>
 <body>
 
@@ -25,7 +25,7 @@
       <label for="l-phone">Celular (com DDD)</label>
       <input id="l-phone" inputmode="tel" autocomplete="username" placeholder="31 9 9999-9999">
       <label for="l-pass">Senha</label>
-      <input id="l-pass" type="password" autocomplete="current-password" placeholder="Sua senha">
+      <div class="pw"><input id="l-pass" type="password" autocomplete="current-password" placeholder="Sua senha"><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></div>
       <button class="btn" type="submit" id="b-login">Entrar</button>
       <div class="err" id="login-err"></div>
       <button class="link" type="button" id="b-forgot">Esqueci a senha</button>
@@ -38,9 +38,9 @@
       <label for="x-code">Código recebido (6 números)</label>
       <input id="x-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
       <label for="x-pass">Nova senha (6 a 10 caracteres)</label>
-      <input id="x-pass" type="password" autocomplete="new-password" maxlength="10">
+      <div class="pw"><input id="x-pass" type="password" autocomplete="new-password" maxlength="10"><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></div>
       <label for="x-pass2">Confirme a nova senha</label>
-      <input id="x-pass2" type="password" autocomplete="new-password">
+      <div class="pw"><input id="x-pass2" type="password" autocomplete="new-password"><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></div>
       <button class="btn" type="submit" id="b-reset">Salvar nova senha e entrar</button>
       <div class="err" id="reset-err"></div>
       <button class="link" type="button" id="b-forgot-back">Voltar</button>
@@ -53,9 +53,9 @@
       <label for="r-phone">Celular (com DDD)</label>
       <input id="r-phone" inputmode="tel" autocomplete="tel" placeholder="31 9 9999-9999">
       <label for="r-pass">Crie uma senha (6 a 10 caracteres: letras, números ou símbolos)</label>
-      <input id="r-pass" type="password" autocomplete="new-password" maxlength="10">
+      <div class="pw"><input id="r-pass" type="password" autocomplete="new-password" maxlength="10"><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></div>
       <label for="r-pass2">Confirme a senha</label>
-      <input id="r-pass2" type="password" autocomplete="new-password">
+      <div class="pw"><input id="r-pass2" type="password" autocomplete="new-password"><button type="button" class="eye" aria-label="Mostrar senha">Mostrar</button></div>
       <button class="btn" type="submit" id="b-reg">Cadastrar e entrar</button>
       <div class="err" id="reg-err"></div>
     </form>
@@ -105,6 +105,6 @@
 
 <div id="loading" class="loading"><div class="spin"></div><div>Carregando o treinamento…</div></div>
 <div id="measure" class="measure"></div>
-<script src="app.js?v=202609301357"></script>
+<script src="app.js?v=202609301522"></script>
 </body>
 </html>

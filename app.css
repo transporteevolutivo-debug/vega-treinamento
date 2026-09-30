@@ -69,9 +69,9 @@ input:focus{border-color:var(--gold)}
 .result .score.no{color:var(--red)}
 .result h2{font-family:Montserrat,Arial,sans-serif;margin:8px 0}
 .cert{background:linear-gradient(135deg,#E9C86C,#B98A2E);color:#0B0B0C;border-radius:16px;padding:22px;margin:18px 0;text-align:center}
-.cert .k{font-family:Montserrat,Arial,sans-serif;font-size:11px;letter-spacing:.2em;font-weight:700;opacity:.75}
-.cert h3{font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:22px;margin:6px 0}
-.cert p{margin:4px 0;font-size:14px}
+.cert .k{font-family:Montserrat,Arial,sans-serif;font-size:11px;letter-spacing:.2em;font-weight:700;color:#3a2e0c}
+.cert h3{font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:22px;margin:6px 0;color:#0B0B0C}
+.cert p{margin:4px 0;font-size:14px;color:#1A1A1A}
 .toast{position:fixed;left:50%;bottom:110px;transform:translateX(-50%);background:#1A1A1E;border:1px solid var(--gold);color:var(--goldl);padding:10px 16px;border-radius:99px;font-size:13px;z-index:9}
 .tabs{display:flex;gap:6px;background:var(--card);border:1px solid var(--line);border-radius:12px;padding:4px;margin-top:16px}
 .tab{flex:1;background:transparent;border:0;color:var(--muted);border-radius:9px;padding:10px;font-family:Montserrat,Arial,sans-serif;font-weight:700;font-size:13px}
@@ -112,3 +112,7 @@ input:focus{border-color:var(--gold)}
 }
 .link{display:block;margin:14px auto 0;background:none;border:0;color:var(--gold);font-size:14px;text-decoration:underline;text-underline-offset:3px}
 .code{font-family:Montserrat,Arial,sans-serif;font-weight:800;font-size:30px;letter-spacing:.2em;color:var(--gold)}
+/* mostrar/ocultar senha */
+.pw{position:relative}
+.pw input{padding-right:84px}
+.eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:1px solid var(--line);color:var(--gold);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}

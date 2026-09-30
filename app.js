@@ -18,7 +18,7 @@
     const { data, error } = await sb.from("content").select("name,mime,data").not("name", "like", "slide/%");
     if (error || !data || !data.length) return false;
     const rows = Object.fromEntries(data.map(r => [r.name, r]));
-    if (!document.getElementById("screens-css")) { const st = document.createElement("style"); st.id = "screens-css"; st.textContent = rows["screens.css"].data; document.head.appendChild(st); }
+    if (!document.getElementById("screens-css")) { const st = document.createElement("style"); st.id = "screens-css"; st.textContent = scopeCss(rows["screens.css"].data); document.head.appendChild(st); }
     let html = rows["screens.html"].data;
     html = html.replace(/src="(img\/[^"]+)"/g, (m, p) => rows[p] ? `src="data:${rows[p].mime};base64,${rows[p].data}"` : m);
     const m = $("#measure"); m.innerHTML = html;
@@ -31,6 +31,27 @@
     });
     S.screens = [...m.querySelectorAll(".screen")].map(el => ({ slide: +el.dataset.slide, el }));
     return true;
+  }
+  // O CSS das telas foi feito para uma página própria (h3, p, .pill…). Aqui ele é limitado a .screen para não recolorir o app.
+  function scopeCss(css) {
+    css = css.replace(/\/\*[\s\S]*?\*\//g, "");
+    const fix = sel => sel.split(",").map(x => x.trim()).filter(Boolean).map(x => (x === "html" || x === "body" || x === "html body") ? ".screen" : (x.startsWith(".screen") ? x : ".screen " + x)).join(",");
+    const walk = src => {
+      let out = "", i = 0;
+      while (i < src.length) {
+        const a = src.indexOf("{", i); if (a < 0) break;
+        const head = src.slice(i, a).trim();
+        let depth = 1, j = a + 1; while (j < src.length && depth) { if (src[j] === "{") depth++; else if (src[j] === "}") depth--; j++; }
+        const body = src.slice(a + 1, j - 1);
+        if (head.startsWith("@media") || head.startsWith("@supports")) out += head + "{" + walk(body) + "}";
+        else if (head.startsWith("@page")) { /* só para impressão */ }
+        else if (head.startsWith("@")) out += head + "{" + body + "}";
+        else if (head) out += fix(head) + "{" + body + "}";
+        i = j;
+      }
+      return out;
+    };
+    return walk(css);
   }
   const screensOf = (mod) => S.screens.filter(s => s.slide >= mod.from && s.slide <= mod.to);
 
@@ -241,6 +262,7 @@
   let tt; function toast(msg) { let t = document.querySelector(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; document.body.appendChild(t); } t.textContent = msg; t.style.display = "block"; clearTimeout(tt); tt = setTimeout(() => t.style.display = "none", 2800); }
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => { document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); $("#f-login").classList.toggle("hidden", t.dataset.tab !== "login"); $("#f-reg").classList.toggle("hidden", t.dataset.tab !== "reg"); });
   $("#f-login").onsubmit = login; $("#f-reg").onsubmit = register; $("#f-reset").onsubmit = resetPassword;
+  document.querySelectorAll(".eye").forEach(b => b.onclick = () => { const i = b.previousElementSibling, show = i.type === "password"; i.type = show ? "text" : "password"; b.textContent = show ? "Ocultar" : "Mostrar"; b.setAttribute("aria-label", show ? "Ocultar senha" : "Mostrar senha"); i.focus(); });
   const showReset = (on) => { $("#f-reset").classList.toggle("hidden", !on); $("#f-login").classList.toggle("hidden", on); $("#f-reg").classList.add("hidden"); $(".tabs").classList.toggle("hidden", on); if (on) $("#x-phone").value = $("#l-phone").value; };
   $("#b-forgot").onclick = () => showReset(true); $("#b-forgot-back").onclick = () => { showReset(false); document.querySelector('.tab[data-tab="login"]').click(); };
   $("#b-logout").onclick = logout; $("#b-home").onclick = () => { clearInterval(S.tick); logAndMove(0); }; $("#b-home2").onclick = home;
