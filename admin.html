@@ -83,8 +83,9 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     $("#kpis").innerHTML = [[n, "motoristas cadastrados"], [done, "concluíram os 5 módulos"], [tried, "fizeram a prova"], [ok, "aprovados"], [n ? Math.round(100 * ok / n) + "%" : "0%", "taxa de aprovação"]].map(([v, l]) => `<div class="kpi"><b>${v}</b><span>${l}</span></div>`).join("");
   }
   function renderTable() {
-    const q = ($("#f-search").value || "").toLowerCase(); const tb = $("#tbl tbody"); tb.innerHTML = "";
-    const list = rows.filter(r => !q || r.name.toLowerCase().includes(q) || r.phone.includes(q.replace(/\D/g, "")));
+    const norm = v => String(v || "").toLowerCase().normalize("NFD").replace(/[̀-ͯ]/g, "");
+    const q = norm($("#f-search").value).trim(), qd = q.replace(/\D/g, ""); const tb = $("#tbl tbody"); tb.innerHTML = "";
+    const list = rows.filter(r => !q || norm(r.name).includes(q) || (qd.length >= 2 && r.phone.includes(qd)));
     $("#count").textContent = list.length + " de " + rows.length;
     list.forEach(r => { const tr = document.createElement("tr"); tr.className = "row"; tr.innerHTML = `<td><b>${esc(r.name)}</b></td><td class="hide-sm">${fmtPhone(r.phone)}</td><td>${r.modules_done}/${r.modules_total}<div class="bar"><i style="width:${100 * r.modules_done / r.modules_total}%"></i></div></td><td class="hide-sm">${fmtT(r.seconds_total)}</td><td>${r.attempts}</td><td>${r.last_score != null ? r.last_score + "/15" : "–"}</td><td class="hide-sm">${r.best_score != null ? r.best_score + "/15" : "–"}</td><td>${status(r)}</td><td class="hide-sm">${fmtD(r.last_seen_at)}</td><td><button class="btn sm ghost" data-reset="1">Nova senha${r.reset_pending_until ? " ●" : ""}</button></td>`;
       tr.onclick = () => detail(r); tr.querySelector("[data-reset]").onclick = e => { e.stopPropagation(); genReset(r); }; tb.appendChild(tr); });
@@ -146,7 +147,7 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
   }
   $("#b-login").onclick = login; $("#f-pass").addEventListener("keydown", e => { if (e.key === "Enter") login(); });
   $("#b-logout").onclick = async () => { await sb.auth.signOut(); location.reload(); };
-  $("#b-refresh").onclick = load; $("#b-csv").onclick = csv; $("#b-admin").onclick = addAdmin; $("#f-search").oninput = renderTable;
+  $("#b-refresh").onclick = load; $("#b-csv").onclick = csv; $("#b-admin").onclick = addAdmin; $("#f-search").oninput = renderTable; $("#f-search").onkeyup = renderTable;
   sb.auth.getSession().then(({ data }) => { if (data.session) load(); });
 })();
 </script>

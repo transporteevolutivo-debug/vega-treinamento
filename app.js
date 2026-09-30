@@ -52,7 +52,7 @@
     const err = $("#reg-err"); err.textContent = "";
     if (name.split(" ").length < 2 || name.length < 5) return err.textContent = "Informe nome e sobrenome.";
     if (!/^\d{10,11}$/.test(phone)) return err.textContent = "Digite o celular com DDD (10 ou 11 números).";
-    if (p1.length < 6) return err.textContent = "A senha precisa ter pelo menos 6 caracteres.";
+    if (p1.length < 6 || p1.length > 10) return err.textContent = "A senha deve ter de 6 a 10 caracteres (letras, números ou símbolos).";
     if (p1 !== p2) return err.textContent = "As senhas não conferem.";
     $("#b-reg").disabled = true;
     try {
@@ -70,7 +70,7 @@
     const phone = digits($("#x-phone").value), code = digits($("#x-code").value), p1 = $("#x-pass").value, p2 = $("#x-pass2").value; const err = $("#reset-err"); err.textContent = "";
     if (!/^\d{10,11}$/.test(phone)) return err.textContent = "Digite o celular com DDD (10 ou 11 números).";
     if (!/^\d{6}$/.test(code)) return err.textContent = "Digite o código de 6 números enviado pelo administrador.";
-    if (p1.length < 6) return err.textContent = "A senha precisa ter pelo menos 6 caracteres.";
+    if (p1.length < 6 || p1.length > 10) return err.textContent = "A senha deve ter de 6 a 10 caracteres (letras, números ou símbolos).";
     if (p1 !== p2) return err.textContent = "As senhas não conferem.";
     $("#b-reset").disabled = true;
     try {
