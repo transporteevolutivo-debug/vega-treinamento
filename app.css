@@ -116,3 +116,13 @@ input:focus{border-color:var(--gold)}
 .pw{position:relative}
 .pw input{padding-right:84px}
 .eye{position:absolute;right:6px;top:50%;transform:translateY(-50%);background:transparent;border:1px solid var(--line);color:var(--gold);border-radius:8px;padding:6px 10px;font-size:12px;font-weight:700}
+/* computador: controles de zoom */
+.desk-only{display:none}
+@media (min-width:900px){
+  .desk-only{display:flex;gap:8px;position:absolute;right:16px;top:50%;transform:translateY(-50%)}
+  .nav button.tool{min-width:0;padding:10px 14px;font-size:12px}
+  .viewer{padding:8px 0 90px}
+  body.wide .viewer{justify-content:flex-start}
+  .stage.desk{box-shadow:0 10px 40px rgba(0,0,0,.6)}
+}
+:fullscreen .topbar{padding:8px 18px}

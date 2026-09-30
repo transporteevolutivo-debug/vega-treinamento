@@ -164,10 +164,15 @@
     show("v-module"); render();
   }
   function fitStage() {
-    const st = $("#stage"), desk = st.classList.contains("desk");
-    const vw = desk ? Math.min(window.innerWidth - 48, 1400) : Math.min(window.innerWidth - 16, 520), vh = window.innerHeight - 150;
-    const W = desk ? 1600 : (st.offsetWidth || 408), H = desk ? 900 : (st.offsetHeight || 726); const k = Math.min(vw / W, vh / H, desk ? 1 : 1.15);
-    st.style.transform = `scale(${k})`; st.parentElement.style.height = (H * k + 20) + "px";
+    const st = $("#stage"), desk = st.classList.contains("desk"), wide = desk && S.fitWidth;
+    const chrome = ($("#v-module .topbar").offsetHeight || 60) + ($(".nav").offsetHeight || 70) + 16;
+    const vw = desk ? Math.min(window.innerWidth - 40, 1600) : Math.min(window.innerWidth - 16, 520), vh = window.innerHeight - chrome;
+    const W = desk ? 1600 : (st.offsetWidth || 408), H = desk ? 900 : (st.offsetHeight || 726);
+    const k = wide ? Math.min(vw / W, 1) : Math.min(vw / W, vh / H, desk ? 1 : 1.15);
+    st.style.transform = `scale(${k})`; st.parentElement.style.height = (H * k + 16) + "px";
+    document.body.classList.toggle("wide", !!wide);
+    const bz = $("#b-zoom"); if (bz) bz.textContent = S.fitWidth ? "Ajustar à tela" : "Ampliar";
+    const bf = $("#b-full"); if (bf) bf.textContent = document.fullscreenElement ? "Sair da tela cheia" : "Tela cheia";
   }
   // imagem 16:9 do slide (carregada sob demanda e guardada na sessão)
   async function slideImg(no) {
@@ -267,6 +272,11 @@
   $("#b-forgot").onclick = () => showReset(true); $("#b-forgot-back").onclick = () => { showReset(false); document.querySelector('.tab[data-tab="login"]').click(); };
   $("#b-logout").onclick = logout; $("#b-home").onclick = () => { clearInterval(S.tick); logAndMove(0); }; $("#b-home2").onclick = home;
   $("#b-prev").onclick = () => logAndMove(-1); $("#b-next").onclick = () => logAndMove(1); $("#b-start-quiz").onclick = startQuiz;
+  // computador: ampliar (ajusta à largura; a página rola) e tela cheia
+  try { S.fitWidth = localStorage.getItem("vega.fitWidth") === "1"; } catch { S.fitWidth = false; }
+  $("#b-zoom").onclick = () => { S.fitWidth = !S.fitWidth; try { localStorage.setItem("vega.fitWidth", S.fitWidth ? "1" : "0"); } catch {} fitStage(); window.scrollTo(0, 0); };
+  $("#b-full").onclick = async () => { try { if (document.fullscreenElement) await document.exitFullscreen(); else await document.documentElement.requestFullscreen(); } catch { toast("Tela cheia não disponível neste navegador."); } };
+  document.addEventListener("fullscreenchange", () => { if (!$("#v-module").classList.contains("hidden")) fitStage(); });
   window.addEventListener("resize", () => { if ($("#v-module").classList.contains("hidden")) return; if ($("#stage").classList.contains("desk") !== isDesk()) render(); else fitStage(); });
   document.addEventListener("keydown", e => { if ($("#v-module").classList.contains("hidden") || e.target.tagName === "INPUT") return; if (e.key === "ArrowRight" && !$("#b-next").disabled) logAndMove(1); else if (e.key === "ArrowLeft" && !$("#b-prev").disabled) logAndMove(-1); });
 
