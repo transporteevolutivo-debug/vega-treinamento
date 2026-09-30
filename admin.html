@@ -45,8 +45,10 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
   <div class="wrap wide">
     <div class="kpis" id="kpis"></div>
     <div class="tools"><input id="f-search" placeholder="Buscar por nome ou telefone"><button class="btn sm ghost" id="b-csv">Exportar CSV</button><span class="mini" id="count"></span></div>
+    <div class="mini" style="margin-top:8px">Clique no nome do motorista para ver módulos, provas e respostas. O botão <b>Nova senha</b> gera um código de 6 números para o motorista criar outra senha sem perder o progresso.</div>
+    <div id="reset-box" class="detail hidden" style="border-color:var(--gold)"></div>
     <div style="overflow-x:auto"><table id="tbl"><thead><tr>
-      <th>Motorista</th><th class="hide-sm">Telefone</th><th>Módulos</th><th class="hide-sm">Tempo</th><th>Tentativas</th><th>Última nota</th><th class="hide-sm">Melhor nota</th><th>Situação</th><th class="hide-sm">Último acesso</th>
+      <th>Motorista</th><th class="hide-sm">Telefone</th><th>Módulos</th><th class="hide-sm">Tempo</th><th>Tentativas</th><th>Última nota</th><th class="hide-sm">Melhor nota</th><th>Situação</th><th class="hide-sm">Último acesso</th><th>Senha</th>
     </tr></thead><tbody></tbody></table></div>
     <div id="detail" class="detail hidden"></div>
     <div class="detail" style="margin-top:22px"><h3>Administradores</h3><div class="mini">Para adicionar: crie o usuário em Authentication › Users no Supabase e informe o e-mail aqui.</div>
@@ -82,7 +84,22 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     const q = ($("#f-search").value || "").toLowerCase(); const tb = $("#tbl tbody"); tb.innerHTML = "";
     const list = rows.filter(r => !q || r.name.toLowerCase().includes(q) || r.phone.includes(q.replace(/\D/g, "")));
     $("#count").textContent = list.length + " de " + rows.length;
-    list.forEach(r => { const tr = document.createElement("tr"); tr.className = "row"; tr.innerHTML = `<td><b>${esc(r.name)}</b></td><td class="hide-sm">${fmtPhone(r.phone)}</td><td>${r.modules_done}/${r.modules_total}<div class="bar"><i style="width:${100 * r.modules_done / r.modules_total}%"></i></div></td><td class="hide-sm">${fmtT(r.seconds_total)}</td><td>${r.attempts}</td><td>${r.last_score != null ? r.last_score + "/15" : "–"}</td><td class="hide-sm">${r.best_score != null ? r.best_score + "/15" : "–"}</td><td>${status(r)}</td><td class="hide-sm">${fmtD(r.last_seen_at)}</td>`; tr.onclick = () => detail(r); tb.appendChild(tr); });
+    list.forEach(r => { const tr = document.createElement("tr"); tr.className = "row"; tr.innerHTML = `<td><b>${esc(r.name)}</b></td><td class="hide-sm">${fmtPhone(r.phone)}</td><td>${r.modules_done}/${r.modules_total}<div class="bar"><i style="width:${100 * r.modules_done / r.modules_total}%"></i></div></td><td class="hide-sm">${fmtT(r.seconds_total)}</td><td>${r.attempts}</td><td>${r.last_score != null ? r.last_score + "/15" : "–"}</td><td class="hide-sm">${r.best_score != null ? r.best_score + "/15" : "–"}</td><td>${status(r)}</td><td class="hide-sm">${fmtD(r.last_seen_at)}</td><td><button class="btn sm ghost" data-reset="1">Nova senha${r.reset_pending_until ? " ●" : ""}</button></td>`;
+      tr.onclick = () => detail(r); tr.querySelector("[data-reset]").onclick = e => { e.stopPropagation(); genReset(r); }; tb.appendChild(tr); });
+  }
+  async function genReset(r) {
+    if (!confirm(`Gerar um código de nova senha para ${r.name}?\n\nA senha atual continua valendo até o motorista usar o código. Módulos, tempo e provas não mudam.`)) return;
+    const box = $("#reset-box"); box.classList.remove("hidden"); box.innerHTML = `<div class="mini">Gerando código para ${esc(r.name)}…</div>`; box.scrollIntoView({ behavior: "smooth", block: "center" });
+    const { data, error } = await sb.rpc("admin_create_reset", { p_driver: r.id });
+    if (error) return box.innerHTML = `<div class="err">Não foi possível gerar o código: ${esc(error.message || "")}</div>`;
+    const c = data[0];
+    box.innerHTML = `<h3>Código de nova senha · ${esc(r.name)}</h3><div class="code">${c.code}</div>
+      <div class="mini" style="margin-top:6px">Vale até ${fmtD(c.expires_at)} · uso único · bloqueia após 5 erros.</div>
+      <p style="margin:10px 0 0">Envie ao motorista (${fmtPhone(r.phone)}): <i>"Na tela de entrada do treinamento, toque em <b>Esqueci a senha</b>, informe seu celular, o código <b>${c.code}</b> e crie a nova senha."</i></p>
+      <div class="tools"><button class="btn sm ghost" id="b-copy">Copiar mensagem</button><button class="btn sm ghost" id="b-close-reset">Fechar</button><span class="mini" id="copy-msg"></span></div>`;
+    $("#b-copy").onclick = async () => { try { await navigator.clipboard.writeText(`Treinamento Grupo Vega: na tela de entrada, toque em "Esqueci a senha", informe seu celular, o código ${c.code} e crie a nova senha. O código vale até ${fmtD(c.expires_at)}.`); $("#copy-msg").textContent = "Copiado."; } catch { $("#copy-msg").textContent = "Selecione e copie o texto acima."; } };
+    $("#b-close-reset").onclick = () => box.classList.add("hidden");
+    r.reset_pending_until = c.expires_at; renderTable();
   }
   async function detail(r) {
     const [{ data: mp }, { data: at }, { data: qs }] = await Promise.all([sb.from("module_progress").select("*").eq("driver_id", r.id).order("module_id"), sb.from("attempts").select("*").eq("driver_id", r.id).order("finished_at", { ascending: false }), sb.from("questions").select("id,options,correct")]);
@@ -94,16 +111,10 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     const atts = (at || []).length ? (at || []).map((a, i) => `<tr class="row" data-i="${i}"><td>${fmtD(a.finished_at)}</td><td>${a.score}/${a.total}</td><td>${a.passed ? '<span class="pill ok">Aprovado</span>' : '<span class="pill no">Reprovado</span>'}</td><td class="mini">ver questões ▾</td></tr><tr class="hidden" id="rev-${i}"><td colspan="4"><div class="rev" style="border:0;padding:0">${review(a)}</div></td></tr>`).join("") : `<tr><td colspan="4" class="mini">Nenhuma tentativa.</td></tr>`;
     const pend = r.reset_pending_until ? `<span class="mini">Há um código de nova senha válido até ${fmtD(r.reset_pending_until)}.</span>` : "";
     $("#detail").innerHTML = `<h3>${esc(r.name)}</h3><div class="mini">${fmtPhone(r.phone)} · cadastrado em ${fmtD(r.created_at)} · tempo total no curso: ${fmtT(r.seconds_total)}</div>
-      <div class="tools"><button class="btn sm ghost" id="b-reset">Gerar código de nova senha</button>${pend}<span class="mini" id="reset-out"></span></div>
+      <div class="tools"><button class="btn sm ghost" id="b-reset">Nova senha (gerar código)</button>${pend}</div>
       <table><thead><tr><th>Módulo</th><th>Status</th><th>Tempo</th><th>Data</th></tr></thead><tbody>${mods}</tbody></table>
       <table><thead><tr><th>Prova</th><th>Nota</th><th>Resultado</th><th>Detalhe</th></tr></thead><tbody>${atts}</tbody></table>`;
-    $("#b-reset").onclick = async () => {
-      if (!confirm(`Gerar um código de nova senha para ${r.name}? A senha atual continua valendo até o motorista usar o código. O progresso e as provas não mudam.`)) return;
-      $("#b-reset").disabled = true; const { data, error } = await sb.rpc("admin_create_reset", { p_driver: r.id }); $("#b-reset").disabled = false;
-      if (error) return $("#reset-out").textContent = "Erro: " + (error.message || "");
-      const c = data[0];
-      $("#reset-out").innerHTML = `Envie ao motorista: <span class="code">${c.code}</span> <span class="mini">(vale até ${fmtD(c.expires_at)}). Ele toca em "Esqueci a senha" na tela de entrada, informa o celular, este código e cria a nova senha.</span>`;
-    };
+    $("#b-reset").onclick = () => genReset(r);
     $("#detail").querySelectorAll("tr.row[data-i]").forEach(tr => tr.onclick = () => { const x = $("#rev-" + tr.dataset.i); x.classList.toggle("hidden"); tr.lastElementChild.textContent = x.classList.contains("hidden") ? "ver questões ▾" : "fechar ▴"; });
     $("#detail").classList.remove("hidden"); $("#detail").scrollIntoView({ behavior: "smooth" });
   }
