@@ -65,6 +65,24 @@
       await enter();
     } catch { $("#b-reg").disabled = false; err.textContent = "Sem conexão. Tente de novo."; }
   }
+  async function resetPassword(e) {
+    e && e.preventDefault();
+    const phone = digits($("#x-phone").value), code = digits($("#x-code").value), p1 = $("#x-pass").value, p2 = $("#x-pass2").value; const err = $("#reset-err"); err.textContent = "";
+    if (!/^\d{10,11}$/.test(phone)) return err.textContent = "Digite o celular com DDD (10 ou 11 números).";
+    if (!/^\d{6}$/.test(code)) return err.textContent = "Digite o código de 6 números enviado pelo administrador.";
+    if (p1.length < 6) return err.textContent = "A senha precisa ter pelo menos 6 caracteres.";
+    if (p1 !== p2) return err.textContent = "As senhas não conferem.";
+    $("#b-reset").disabled = true;
+    try {
+      const r = await fetch(`${C.supabaseUrl}/functions/v1/redefinir`, { method: "POST", headers: { "Content-Type": "application/json", apikey: C.supabaseKey }, body: JSON.stringify({ phone, code, password: p1 }) });
+      const j = await r.json().catch(() => ({}));
+      if (!r.ok) { $("#b-reset").disabled = false; return err.textContent = j.error || "Não foi possível redefinir a senha."; }
+      const { error } = await sb.auth.signInWithPassword({ email: emailOf(phone), password: p1 });
+      $("#b-reset").disabled = false;
+      if (error) return err.textContent = "Senha salva, mas não foi possível entrar. Use \"Já tenho cadastro\".";
+      toast("Nova senha salva."); await enter();
+    } catch { $("#b-reset").disabled = false; err.textContent = "Sem conexão. Tente de novo."; }
+  }
   async function logout() { await sb.auth.signOut(); S.user = null; S.screens = []; $("#measure").innerHTML = ""; show("v-login"); }
 
   async function enter() {
@@ -199,7 +217,9 @@
   // ---------- util / eventos ----------
   let tt; function toast(msg) { let t = document.querySelector(".toast"); if (!t) { t = document.createElement("div"); t.className = "toast"; document.body.appendChild(t); } t.textContent = msg; t.style.display = "block"; clearTimeout(tt); tt = setTimeout(() => t.style.display = "none", 2800); }
   document.querySelectorAll(".tab").forEach(t => t.onclick = () => { document.querySelectorAll(".tab").forEach(x => x.classList.toggle("on", x === t)); $("#f-login").classList.toggle("hidden", t.dataset.tab !== "login"); $("#f-reg").classList.toggle("hidden", t.dataset.tab !== "reg"); });
-  $("#f-login").onsubmit = login; $("#f-reg").onsubmit = register;
+  $("#f-login").onsubmit = login; $("#f-reg").onsubmit = register; $("#f-reset").onsubmit = resetPassword;
+  const showReset = (on) => { $("#f-reset").classList.toggle("hidden", !on); $("#f-login").classList.toggle("hidden", on); $("#f-reg").classList.add("hidden"); $(".tabs").classList.toggle("hidden", on); if (on) $("#x-phone").value = $("#l-phone").value; };
+  $("#b-forgot").onclick = () => showReset(true); $("#b-forgot-back").onclick = () => { showReset(false); document.querySelector('.tab[data-tab="login"]').click(); };
   $("#b-logout").onclick = logout; $("#b-home").onclick = () => { clearInterval(S.tick); logAndMove(0); }; $("#b-home2").onclick = home;
   $("#b-prev").onclick = () => logAndMove(-1); $("#b-next").onclick = () => logAndMove(1); $("#b-start-quiz").onclick = startQuiz;
   window.addEventListener("resize", () => { if ($("#v-module").classList.contains("hidden")) return; if ($("#stage").classList.contains("desk") !== isDesk()) render(); else fitStage(); });

@@ -28,6 +28,22 @@
       <input id="l-pass" type="password" autocomplete="current-password" placeholder="Sua senha">
       <button class="btn" type="submit" id="b-login">Entrar</button>
       <div class="err" id="login-err"></div>
+      <button class="link" type="button" id="b-forgot">Esqueci a senha</button>
+    </form>
+
+    <form id="f-reset" class="hidden" autocomplete="on">
+      <p class="muted" style="margin-top:14px">Peça o <b>código de nova senha</b> a um administrador do grupo. Ele vale por 24 horas. Seu progresso e suas provas continuam salvos.</p>
+      <label for="x-phone">Celular (com DDD)</label>
+      <input id="x-phone" inputmode="tel" autocomplete="username" placeholder="31 9 9999-9999">
+      <label for="x-code">Código recebido (6 números)</label>
+      <input id="x-code" inputmode="numeric" autocomplete="one-time-code" maxlength="6" placeholder="000000">
+      <label for="x-pass">Nova senha (mínimo 6 caracteres)</label>
+      <input id="x-pass" type="password" autocomplete="new-password">
+      <label for="x-pass2">Confirme a nova senha</label>
+      <input id="x-pass2" type="password" autocomplete="new-password">
+      <button class="btn" type="submit" id="b-reset">Salvar nova senha e entrar</button>
+      <div class="err" id="reset-err"></div>
+      <button class="link" type="button" id="b-forgot-back">Voltar</button>
     </form>
 
     <form id="f-reg" class="hidden" autocomplete="on">

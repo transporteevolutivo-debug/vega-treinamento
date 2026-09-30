@@ -92,9 +92,18 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     const review = a => ((a.detail || []).map(d => `<div class="ri ${d.ok ? "ok" : "no"}"><div class="mk">${d.ok ? "✓" : "✗"}</div><div><div class="qq">${d.n}. ${esc(d.q)} <span class="mini">(${esc(modName(d.m))})</span></div><div class="aa">Resposta do motorista: ${esc(d.a ?? "(em branco)")}</div>${d.ok ? "" : `<div class="ee">Resposta certa: ${esc(expected[d.id] ?? "–")}</div>`}</div></div>`).join("") || '<div class="mini">Sem detalhe por questão (prova anterior a esta regra).</div>')
       + ((a.reset_modules || []).length ? `<div class="mini" style="margin-top:8px">Módulos zerados após esta prova: ${a.reset_modules.map(modName).join(", ")}</div>` : "");
     const atts = (at || []).length ? (at || []).map((a, i) => `<tr class="row" data-i="${i}"><td>${fmtD(a.finished_at)}</td><td>${a.score}/${a.total}</td><td>${a.passed ? '<span class="pill ok">Aprovado</span>' : '<span class="pill no">Reprovado</span>'}</td><td class="mini">ver questões ▾</td></tr><tr class="hidden" id="rev-${i}"><td colspan="4"><div class="rev" style="border:0;padding:0">${review(a)}</div></td></tr>`).join("") : `<tr><td colspan="4" class="mini">Nenhuma tentativa.</td></tr>`;
+    const pend = r.reset_pending_until ? `<span class="mini">Há um código de nova senha válido até ${fmtD(r.reset_pending_until)}.</span>` : "";
     $("#detail").innerHTML = `<h3>${esc(r.name)}</h3><div class="mini">${fmtPhone(r.phone)} · cadastrado em ${fmtD(r.created_at)} · tempo total no curso: ${fmtT(r.seconds_total)}</div>
+      <div class="tools"><button class="btn sm ghost" id="b-reset">Gerar código de nova senha</button>${pend}<span class="mini" id="reset-out"></span></div>
       <table><thead><tr><th>Módulo</th><th>Status</th><th>Tempo</th><th>Data</th></tr></thead><tbody>${mods}</tbody></table>
       <table><thead><tr><th>Prova</th><th>Nota</th><th>Resultado</th><th>Detalhe</th></tr></thead><tbody>${atts}</tbody></table>`;
+    $("#b-reset").onclick = async () => {
+      if (!confirm(`Gerar um código de nova senha para ${r.name}? A senha atual continua valendo até o motorista usar o código. O progresso e as provas não mudam.`)) return;
+      $("#b-reset").disabled = true; const { data, error } = await sb.rpc("admin_create_reset", { p_driver: r.id }); $("#b-reset").disabled = false;
+      if (error) return $("#reset-out").textContent = "Erro: " + (error.message || "");
+      const c = data[0];
+      $("#reset-out").innerHTML = `Envie ao motorista: <span class="code">${c.code}</span> <span class="mini">(vale até ${fmtD(c.expires_at)}). Ele toca em "Esqueci a senha" na tela de entrada, informa o celular, este código e cria a nova senha.</span>`;
+    };
     $("#detail").querySelectorAll("tr.row[data-i]").forEach(tr => tr.onclick = () => { const x = $("#rev-" + tr.dataset.i); x.classList.toggle("hidden"); tr.lastElementChild.textContent = x.classList.contains("hidden") ? "ver questões ▾" : "fechar ▴"; });
     $("#detail").classList.remove("hidden"); $("#detail").scrollIntoView({ behavior: "smooth" });
   }
