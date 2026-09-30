@@ -24,6 +24,7 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
 .detail h3{font-family:Montserrat,Arial,sans-serif;margin:0 0 4px}
 .mini{font-size:13px;color:var(--muted)}
 .bar{height:6px;background:#26262b;border-radius:3px;overflow:hidden;min-width:80px}.bar i{display:block;height:100%;background:var(--gold)}
+.btn.danger{border-color:var(--red);color:var(--red)}
 @media (max-width:700px){ .hide-sm{display:none} }
 </style>
 </head>
@@ -54,6 +55,7 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     <div class="detail" style="margin-top:22px"><h3>Administradores</h3><div class="mini">Para adicionar: crie o usuário em Authentication › Users no Supabase e informe o e-mail aqui.</div>
       <div class="tools"><input id="f-admin" type="email" placeholder="email@exemplo.com"><button class="btn sm ghost" id="b-admin">Adicionar</button><span class="mini" id="admin-msg"></span></div>
       <div id="admins" class="mini" style="margin-top:8px"></div></div>
+    <div class="detail" style="margin-top:22px"><h3>Motoristas excluídos</h3><div id="deleted" class="mini">Nenhum.</div></div>
   </div>
 </section>
 <script>
@@ -74,7 +76,7 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     const { data, error } = await sb.from("v_admin_drivers").select("*").order("last_seen_at", { ascending: false });
     if (error) { $("#err").textContent = "Sem permissão. Faça login como administrador."; return; }
     const { data: me } = await sb.rpc("is_admin"); if (!me) { await sb.auth.signOut(); $("#err").textContent = "Este usuário não é administrador."; return; }
-    rows = data || []; $("#v-login").classList.add("hidden"); $("#v-panel").classList.remove("hidden"); renderKpis(); renderTable(); loadAdmins();
+    rows = data || []; $("#v-login").classList.add("hidden"); $("#v-panel").classList.remove("hidden"); renderKpis(); renderTable(); loadAdmins(); loadDeleted();
   }
   function renderKpis() {
     const n = rows.length, done = rows.filter(r => r.modules_done == r.modules_total).length, ok = rows.filter(r => r.passed).length, tried = rows.filter(r => r.attempts > 0).length;
@@ -86,6 +88,18 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     $("#count").textContent = list.length + " de " + rows.length;
     list.forEach(r => { const tr = document.createElement("tr"); tr.className = "row"; tr.innerHTML = `<td><b>${esc(r.name)}</b></td><td class="hide-sm">${fmtPhone(r.phone)}</td><td>${r.modules_done}/${r.modules_total}<div class="bar"><i style="width:${100 * r.modules_done / r.modules_total}%"></i></div></td><td class="hide-sm">${fmtT(r.seconds_total)}</td><td>${r.attempts}</td><td>${r.last_score != null ? r.last_score + "/15" : "–"}</td><td class="hide-sm">${r.best_score != null ? r.best_score + "/15" : "–"}</td><td>${status(r)}</td><td class="hide-sm">${fmtD(r.last_seen_at)}</td><td><button class="btn sm ghost" data-reset="1">Nova senha${r.reset_pending_until ? " ●" : ""}</button></td>`;
       tr.onclick = () => detail(r); tr.querySelector("[data-reset]").onclick = e => { e.stopPropagation(); genReset(r); }; tb.appendChild(tr); });
+  }
+  async function delDriver(r) {
+    const typed = prompt(`Excluir ${r.name} (${fmtPhone(r.phone)})?\n\nIsso apaga o cadastro, o acesso, o progresso e as provas deste motorista. Não dá para desfazer.\n\nPara confirmar, digite EXCLUIR:`);
+    if (typed === null) return; if (typed.trim().toUpperCase() !== "EXCLUIR") return alert("Exclusão cancelada: a palavra digitada não confere.");
+    const { data: { session } } = await sb.auth.getSession(); if (!session) return alert("Sessão expirada. Entre de novo.");
+    $("#b-del").disabled = true; $("#b-del").textContent = "Excluindo…";
+    try {
+      const resp = await fetch(`${C.supabaseUrl}/functions/v1/excluir`, { method: "POST", headers: { "Content-Type": "application/json", apikey: C.supabaseKey, Authorization: "Bearer " + session.access_token }, body: JSON.stringify({ driver_id: r.id }) });
+      const j = await resp.json().catch(() => ({}));
+      if (!resp.ok) { $("#b-del").disabled = false; $("#b-del").textContent = "Excluir motorista"; return alert("Não foi possível excluir: " + (j.error || resp.status)); }
+      $("#detail").classList.add("hidden"); alert(`${r.name} foi excluído.`); load();
+    } catch { $("#b-del").disabled = false; $("#b-del").textContent = "Excluir motorista"; alert("Sem conexão. Tente de novo."); }
   }
   async function genReset(r) {
     if (!confirm(`Gerar um código de nova senha para ${r.name}?\n\nA senha atual continua valendo até o motorista usar o código. Módulos, tempo e provas não mudam.`)) return;
@@ -111,12 +125,17 @@ tr.row{cursor:pointer}tr.row:hover td{background:#141416}
     const atts = (at || []).length ? (at || []).map((a, i) => `<tr class="row" data-i="${i}"><td>${fmtD(a.finished_at)}</td><td>${a.score}/${a.total}</td><td>${a.passed ? '<span class="pill ok">Aprovado</span>' : '<span class="pill no">Reprovado</span>'}</td><td class="mini">ver questões ▾</td></tr><tr class="hidden" id="rev-${i}"><td colspan="4"><div class="rev" style="border:0;padding:0">${review(a)}</div></td></tr>`).join("") : `<tr><td colspan="4" class="mini">Nenhuma tentativa.</td></tr>`;
     const pend = r.reset_pending_until ? `<span class="mini">Há um código de nova senha válido até ${fmtD(r.reset_pending_until)}.</span>` : "";
     $("#detail").innerHTML = `<h3>${esc(r.name)}</h3><div class="mini">${fmtPhone(r.phone)} · cadastrado em ${fmtD(r.created_at)} · tempo total no curso: ${fmtT(r.seconds_total)}</div>
-      <div class="tools"><button class="btn sm ghost" id="b-reset">Nova senha (gerar código)</button>${pend}</div>
+      <div class="tools"><button class="btn sm ghost" id="b-reset">Nova senha (gerar código)</button>${pend}<span class="sp" style="flex:1"></span><button class="btn sm ghost danger" id="b-del">Excluir motorista</button></div>
       <table><thead><tr><th>Módulo</th><th>Status</th><th>Tempo</th><th>Data</th></tr></thead><tbody>${mods}</tbody></table>
       <table><thead><tr><th>Prova</th><th>Nota</th><th>Resultado</th><th>Detalhe</th></tr></thead><tbody>${atts}</tbody></table>`;
     $("#b-reset").onclick = () => genReset(r);
+    $("#b-del").onclick = () => delDriver(r);
     $("#detail").querySelectorAll("tr.row[data-i]").forEach(tr => tr.onclick = () => { const x = $("#rev-" + tr.dataset.i); x.classList.toggle("hidden"); tr.lastElementChild.textContent = x.classList.contains("hidden") ? "ver questões ▾" : "fechar ▴"; });
     $("#detail").classList.remove("hidden"); $("#detail").scrollIntoView({ behavior: "smooth" });
+  }
+  async function loadDeleted() {
+    const { data } = await sb.from("driver_deletions").select("name,phone,modules_done,attempts,passed,deleted_by_email,deleted_at").order("deleted_at", { ascending: false }).limit(50);
+    $("#deleted").innerHTML = (data || []).length ? `<table><thead><tr><th>Motorista</th><th class="hide-sm">Telefone</th><th>Módulos</th><th>Provas</th><th>Excluído por</th><th>Quando</th></tr></thead><tbody>` + data.map(d => `<tr><td>${esc(d.name)}</td><td class="hide-sm">${fmtPhone(d.phone)}</td><td>${d.modules_done}/5</td><td>${d.attempts}${d.passed ? " · aprovado" : ""}</td><td>${esc(d.deleted_by_email || "")}</td><td>${fmtD(d.deleted_at)}</td></tr>`).join("") + `</tbody></table>` : "Nenhum.";
   }
   async function loadAdmins() { const { data } = await sb.from("admins").select("email,created_at").order("created_at"); $("#admins").innerHTML = (data || []).map(a => `• ${esc(a.email)}`).join("<br>") || "Nenhum administrador cadastrado."; }
   async function addAdmin() { const email = $("#f-admin").value.trim(); $("#admin-msg").textContent = ""; if (!email) return; const { error } = await sb.rpc("add_admin", { p_email: email }); $("#admin-msg").textContent = error ? (error.message || "Erro") : "Adicionado."; if (!error) { $("#f-admin").value = ""; loadAdmins(); } }
