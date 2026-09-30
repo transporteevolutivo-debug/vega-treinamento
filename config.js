@@ -10,6 +10,9 @@ window.VEGA_CONFIG = {
     { id: 4, title: "Regras do grupo", subtitle: "Valores mínimos, fila, aceite e penalidades", from: 44, to: 53 },
     { id: 5, title: "Turismo em Minas", subtitle: "Visão de mercado e oportunidades", from: 54, to: 66 },
   ],
-  minSecondsPerScreen: 4,   // botão "Próxima" libera depois deste tempo
+  // Tempo mínimo de leitura por tela = base + palavras ÷ palavrasPorSegundo, limitado entre mín. e máx.
+  // Só vale na primeira passagem por cada tela; ao revisar, o botão libera na hora.
+  reading: { baseSeconds: 2, wordsPerSecond: 3.5, minSeconds: 4, maxSeconds: 20 },
+  minSecondsPerScreen: 4,   // (compatibilidade) usado se "reading" não existir
   passPercent: 80,
 };

@@ -119,7 +119,7 @@
     const modNames = ids => (ids || []).map(id => { const m = C.modules.find(x => x.id === id); return m ? m.id + ". " + m.title : id; }).join(", ");
     if (best) q.innerHTML = `<b>Prova concluída</b><p>Aprovado com ${best.score} de ${best.total} em ${new Date(best.finished_at).toLocaleDateString("pt-BR")}.</p><span class="pill ok">APROVADO</span>`;
     else if (allDone) q.innerHTML = `<b>Prova de conhecimento</b><p>Todos os módulos concluídos. ${last ? "Última tentativa: " + last.score + "/" + last.total + ". " : ""}São 15 questões, aprovação com 80%.</p><button class="btn sm" id="b-quiz">Fazer a prova</button>`;
-    else if (last) q.innerHTML = `<b>Prova de conhecimento</b><p>Você fez ${last.score} de ${last.total} na última prova. Assista de novo: ${esc(modNames(last.reset_modules))}. Depois, faça uma nova prova completa.</p><span class="pill no">REFAZER MÓDULOS</span>`;
+    else if (last) q.innerHTML = `<b>Prova de conhecimento</b><p>Você fez ${last.score} de ${last.total} na última prova. Assista de novo: ${esc(modNames((last.reset_modules || []).filter(id => !(S.progress[id] && S.progress[id].completed))))}. Depois, faça uma nova prova completa.</p><span class="pill no">REFAZER MÓDULOS</span>`;
     else q.innerHTML = `<b>Prova de conhecimento</b><p>Libera quando os cinco módulos estiverem concluídos.</p><span class="pill">BLOQUEADA</span>`;
     const bq = $("#b-quiz"); if (bq) bq.onclick = () => { show("v-quiz"); $("#quiz-intro").classList.remove("hidden"); $("#quiz-body").classList.add("hidden"); $("#quiz-result").classList.add("hidden"); };
     renderHistory(att || []);
@@ -166,19 +166,41 @@
     const last = S.idx === scr.length - 1; $("#b-next").textContent = last ? "Concluir módulo" : "Próxima";
     fitStage(); window.scrollTo(0, 0);
     clearInterval(S.tick); S.enteredAt = Date.now(); $("#b-next").disabled = true; $("#timer").style.width = "0";
-    const seen = S.progress[S.mod.id] && S.progress[S.mod.id].max_screen > S.idx; const need = seen ? 0 : C.minSecondsPerScreen * 1000;
-    S.tick = setInterval(() => { const dt = Date.now() - S.enteredAt; $("#timer").style.width = Math.min(100, 100 * dt / Math.max(need, 1)) + "%"; if (dt >= need) { $("#b-next").disabled = false; clearInterval(S.tick); } }, 120);
+    const seen = S.progress[S.mod.id] && S.progress[S.mod.id].max_screen > S.idx; const need = seen ? 0 : readSeconds(cur) * 1000;
+    const label = $("#b-next").textContent;
+    S.tick = setInterval(() => {
+      const dt = Date.now() - S.enteredAt; $("#timer").style.width = Math.min(100, 100 * dt / Math.max(need, 1)) + "%";
+      if (dt >= need) { $("#b-next").disabled = false; $("#b-next").textContent = label; clearInterval(S.tick); }
+      else $("#b-next").textContent = `${label} · ${Math.ceil((need - dt) / 1000)} s`;
+    }, 120);
+  }
+  // tempo mínimo de leitura de uma tela, pelo tamanho do texto (config.reading)
+  function readSeconds(screen) {
+    const R = C.reading || { baseSeconds: 0, wordsPerSecond: 1e9, minSeconds: C.minSecondsPerScreen || 4, maxSeconds: C.minSecondsPerScreen || 4 };
+    const words = (screen.el.textContent || "").trim().split(/\s+/).filter(w => w.length > 1).length;
+    return Math.min(R.maxSeconds, Math.max(R.minSeconds, Math.round(R.baseSeconds + words / R.wordsPerSecond)));
   }
   async function logAndMove(delta) {
-    const scr = screensOf(S.mod), secs = Math.round((Date.now() - S.enteredAt) / 1000);
+    const scr = screensOf(S.mod), secs = Math.min(7200, Math.max(0, Math.round((Date.now() - S.enteredAt) / 1000)));
     const next = S.idx + delta, completing = delta > 0 && S.idx === scr.length - 1;
     const screenNo = Math.min(Math.max(next, 0), scr.length - 1);
-    sb.rpc("log_progress", { p_module: S.mod.id, p_screen: completing ? scr.length : screenNo, p_seconds: secs, p_completed: completing }).then(({ error }) => { if (error) toast("Sem conexão: o progresso não foi salvo."); });
+    const args = { p_module: S.mod.id, p_screen: completing ? scr.length : screenNo, p_seconds: secs, p_completed: completing };
     const p = S.progress[S.mod.id] || (S.progress[S.mod.id] = { module_id: S.mod.id, last_screen: 0, max_screen: 0, seconds: 0, completed: false });
     p.max_screen = Math.max(p.max_screen, S.idx + 1); p.seconds += secs;
-    if (completing) { p.completed = true; toast("Módulo concluído!"); return home(); }
-    S.idx = screenNo; render();
+    if (!completing) {
+      sb.rpc("log_progress", args).then(({ error }) => { if (error) { S.pending = (S.pending || []).concat([args]); toast("Sem conexão: o progresso será salvo na próxima tela."); } });
+      S.idx = screenNo; return render();
+    }
+    // concluir: grava antes de voltar (com nova tentativa), para a lista já mostrar "Concluído"
+    $("#b-next").disabled = true; $("#b-next").textContent = "Salvando…";
+    let ok = false;
+    for (let i = 0; i < 3 && !ok; i++) { const { error } = await sb.rpc("log_progress", args); ok = !error; if (!ok) await new Promise(r => setTimeout(r, 1200)); }
+    if (!ok) { $("#b-next").disabled = false; $("#b-next").textContent = "Concluir módulo"; return toast("Sem conexão: não foi possível salvar a conclusão. Tente de novo."); }
+    p.completed = true; toast("Módulo concluído!"); return home();
   }
+  // reenvia registros que falharam (sem conexão) assim que outro registro passar
+  const flushPending = async () => { const q = S.pending || []; S.pending = []; for (const a of q) { const { error } = await sb.rpc("log_progress", a); if (error) S.pending.push(a); } };
+  setInterval(() => { if (S.user && (S.pending || []).length) flushPending(); }, 15000);
 
   // ---------- prova ----------
   async function startQuiz() {
