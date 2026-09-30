@@ -184,7 +184,7 @@
     const scr = screensOf(S.mod), secs = Math.min(7200, Math.max(0, Math.round((Date.now() - S.enteredAt) / 1000)));
     const next = S.idx + delta, completing = delta > 0 && S.idx === scr.length - 1;
     const screenNo = Math.min(Math.max(next, 0), scr.length - 1);
-    const args = { p_module: S.mod.id, p_screen: completing ? scr.length : screenNo, p_seconds: secs, p_completed: completing };
+    const args = { p_module: S.mod.id, p_screen: completing ? scr.length : screenNo, p_seconds: secs, p_completed: completing, p_max: (delta === 0 && !$("#b-next").disabled) ? S.idx + 1 : null };
     const p = S.progress[S.mod.id] || (S.progress[S.mod.id] = { module_id: S.mod.id, last_screen: 0, max_screen: 0, seconds: 0, completed: false });
     p.max_screen = Math.max(p.max_screen, S.idx + 1); p.seconds += secs;
     if (!completing) {
